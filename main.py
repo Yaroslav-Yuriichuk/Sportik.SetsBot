@@ -1,7 +1,11 @@
 ﻿import logging
 import os
+import asyncio
+import gspread
 
+from datetime import timezone
 from dotenv import load_dotenv
+from gspread.utils import ValueInputOption
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 
@@ -13,7 +17,41 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 
 async def default_reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not update.message or update.message.text is None:
+        return
+
+    timestamp = update.message.date.astimezone(timezone.utc).isoformat()
+    worksheet: gspread.Worksheet = context.application.bot_data["worksheet"]
+
+    try:
+        await asyncio.to_thread(
+            worksheet.append_row,
+            [timestamp, update.message.text],
+            value_input_option=ValueInputOption.raw,
+        )
+    except Exception:
+        logging.exception("Failed to append row to Google Sheet")
+        await update.message.reply_text("Failed to log message.")
+        return
+
     await update.message.reply_text(REPLY_TEXT)
+
+
+def build_worksheet() -> gspread.Worksheet:
+    service_account_file = os.environ.get("GOOGLE_SERVICE_ACCOUNT_FILE")
+    sheet_id = os.environ.get("GOOGLE_SHEET_ID")
+    worksheet_name = os.environ.get("GOOGLE_WORKSHEET_NAME", "Sets")
+
+    if not service_account_file:
+        raise SystemExit("Missing GOOGLE_SERVICE_ACCOUNT_FILE environment variable.")
+
+    if not sheet_id:
+        raise SystemExit("Missing GOOGLE_SHEET_ID environment variable.")
+
+    client = gspread.service_account(filename=service_account_file)
+    spreadsheet = client.open_by_key(sheet_id)
+
+    return spreadsheet.worksheet(worksheet_name)
 
 
 def main() -> None:
@@ -29,7 +67,10 @@ def main() -> None:
     if not token:
         raise SystemExit("Missing TELEGRAM_BOT_TOKEN environment variable.")
 
+    worksheet = build_worksheet()
+
     application = Application.builder().token(token).build()
+    application.bot_data["worksheet"] = worksheet
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, default_reply))
 

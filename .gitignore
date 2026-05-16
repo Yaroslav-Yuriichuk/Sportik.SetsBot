@@ -219,3 +219,6 @@ __marimo__/
 
 # Jet Brain cache
 .idea/
+
+# Google service account
+service-account.json
