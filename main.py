@@ -9,24 +9,66 @@ from gspread.utils import ValueInputOption
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 
-REPLY_TEXT = "Message received."
-
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text(REPLY_TEXT)
+    allowed_username = os.environ.get("ALLOWED_TELEGRAM_USERNAME")
+    sender = update.effective_user
+    sender_username = sender.username if sender else None
+
+    if allowed_username and sender_username != allowed_username:
+        await update.message.reply_text("You are not authorized to use this bot.")
+        return
+
+    await update.message.reply_text("Bot started. Send exercise name and repetitions to log a set.")
+
+
+def parse_message(text: str) -> tuple[str, int] | None:
+    parts = [part for part in text.strip().split() if part]
+
+    if len(parts) < 2:
+        return None
+
+    repetitions_text = parts[-1]
+
+    if not repetitions_text.isdigit():
+        return None
+
+    exercise_name = " ".join(parts[:-1]).strip()
+
+    if not exercise_name:
+        return None
+
+    return exercise_name, int(repetitions_text)
 
 
 async def default_reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.message or update.message.text is None:
         return
 
+    allowed_username = os.environ.get("ALLOWED_TELEGRAM_USERNAME")
+    sender = update.effective_user
+    sender_username = sender.username if sender else None
+
+    if allowed_username and sender_username != allowed_username:
+        await update.message.reply_text("You are not authorized to use this bot.")
+        return
+
+    parsed = parse_message(update.message.text)
+
+    if not parsed:
+        await update.message.reply_text(
+            "Please send exercise name and repetitions."
+        )
+        return
+
+    exercise_name, repetitions = parsed
     timestamp = update.message.date.astimezone(timezone.utc).isoformat()
     worksheet: gspread.Worksheet = context.application.bot_data["worksheet"]
 
     try:
         await asyncio.to_thread(
             worksheet.append_row,
-            [timestamp, update.message.text],
+            [exercise_name, timestamp, repetitions],
             value_input_option=ValueInputOption.raw,
         )
     except Exception:
@@ -34,7 +76,7 @@ async def default_reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         await update.message.reply_text("Failed to log message.")
         return
 
-    await update.message.reply_text(REPLY_TEXT)
+    await update.message.reply_text(f"Logged {repetitions} repetition(s) of {exercise_name}.")
 
 
 def build_worksheet() -> gspread.Worksheet:

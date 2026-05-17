@@ -13,6 +13,7 @@ TELEGRAM_BOT_TOKEN = "YOUR_TOKEN"
 GOOGLE_SERVICE_ACCOUNT_FILE = "C:\\path\\to\\service-account.json"
 GOOGLE_SHEET_ID = "YOUR_SHEET_ID"
 GOOGLE_WORKSHEET_NAME = "Sheet1"
+ALLOWED_TELEGRAM_USERNAME = "your_username"
 ```
 
 4. Install dependencies:
