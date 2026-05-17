@@ -9,11 +9,17 @@ from gspread.utils import ValueInputOption
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 
-REPLY_TEXT = "Message received."
-
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text(REPLY_TEXT)
+    allowed_username = os.environ.get("ALLOWED_TELEGRAM_USERNAME")
+    sender = update.effective_user
+    sender_username = sender.username if sender else None
+
+    if allowed_username and sender_username != allowed_username:
+        await update.message.reply_text("You are not authorized to use this bot.")
+        return
+
+    await update.message.reply_text("Bot started. Send exercise name and repetitions to log a set.")
 
 
 def parse_message(text: str) -> tuple[str, int] | None:
@@ -37,6 +43,14 @@ def parse_message(text: str) -> tuple[str, int] | None:
 
 async def default_reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.message or update.message.text is None:
+        return
+
+    allowed_username = os.environ.get("ALLOWED_TELEGRAM_USERNAME")
+    sender = update.effective_user
+    sender_username = sender.username if sender else None
+
+    if allowed_username and sender_username != allowed_username:
+        await update.message.reply_text("You are not authorized to use this bot.")
         return
 
     parsed = parse_message(update.message.text)
