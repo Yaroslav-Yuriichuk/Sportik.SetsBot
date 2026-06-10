@@ -222,3 +222,6 @@ __marimo__/
 
 # Google service account
 service-account.json
+
+# Config file
+users_config.json
