@@ -8,9 +8,9 @@ from gspread.utils import ValueInputOption
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 
-from config import ConfigProvider
-from parsing import parse_exercise
-from sheets import WorksheetProvider
+from providers.config import ConfigProvider
+from utilities.parsing import parse_exercise
+from providers.sheets import WorksheetProvider
 
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
